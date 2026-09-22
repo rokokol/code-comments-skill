@@ -32,7 +32,12 @@ and belongs in a repository's own gate
   --sentences [N]  report every sentence in a comment longer than N words, default 25,
                 and exit 1 when there is one. A measurement rather than a rule: the
                 register's other halves are a reading job, and a length reported on every
-                run would be a warning nobody acts on. Ask for it during a deliberate pass
+                run would be a warning nobody acts on. Ask for it during a deliberate pass.
+                A sentence ends at a full stop, a question mark, a semicolon or an empty
+                comment line, so a comment written one fact to a line with no mark at the
+                end of each reads as one long sentence here. Nothing tells that apart from
+                a wrapped sentence: both continue in lower case. Read a finding before
+                acting on it
   --list-rules  print every rule with its tier and the languages it decides, and exit
   --frontend    print the Python program that reads the trees, for a linter, and exit
   PATH...       check only these files instead of every tracked .nix, .sh, .bash, .py,
