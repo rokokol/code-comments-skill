@@ -1,0 +1,12 @@
+# The configuration for the one Python file this repository has: the frontend inside
+# check-comments.sh, which `./check-comments.sh --frontend` prints for a linter to read.
+# check.sh passes this file explicitly, because the program it lints is written to a
+# temporary directory where ruff would find no configuration of its own
+
+target-version = "py39"
+line-length = 100
+
+[lint]
+# SIM905 wants a list literal where a string is split. The one place it fires is a list of
+# sixty English stop words, and sixty quoted strings read worse than one sentence of them
+ignore = ["SIM905"]
