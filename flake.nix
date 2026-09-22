@@ -25,6 +25,9 @@
             # check-sh.sh reads a script as a tree, out of `shfmt --to-json`, and jq
             # flattens that tree into rows
             jq
+            # The same binary the formatter output wraps with treefmt. The gate calls it
+            # directly, because `nix fmt` needs the flake and a check should not
+            nixfmt
             # check-comments.sh prints its frontend for a linter that cannot see Python
             # inside a heredoc
             ruff

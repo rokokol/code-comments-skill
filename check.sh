@@ -3,9 +3,9 @@
 # skill hands its checker to other repositories, so the checker is held to its own rules
 # on every run — including on this repository's own comments
 # Needs bash 3.2, python3 and POSIX tools only for its own code, so behaviour mode runs
-# unchanged under the bash a macOS runner has; the lint half calls actionlint, shellcheck,
-# shfmt, ruff and nix, which come from the flake's dev shell and never from the runner's
-# PATH
+# unchanged under the bash a macOS runner has; the lint half calls actionlint, nixfmt,
+# `shellcheck`, shfmt, ruff and nix, which come from the flake's dev shell and never from
+# the runner's PATH
 set -euo pipefail
 
 usage() {
@@ -119,6 +119,13 @@ check_lint() {
     fail "the flake claims a system it cannot be evaluated for: $(grep -m 1 -E 'error: .+' "$work/flake.err" || tail -1 "$work/flake.err")"
   grep -q x86_64-linux "$work/systems.json" ||
     fail "the flake does not offer a dev shell on x86_64-linux, which is what CI runs the gate on"
+
+  echo "== the Nix this repository holds is formatted"
+  # A `formatter` output nothing runs is a declaration, not a rule. nixfmt rather than
+  # `nix fmt`, because the second needs the flake and this is the same binary the treefmt
+  # wrapper calls
+  nixfmt --check ./*.nix ||
+    fail "a .nix file here is not what nixfmt writes — run nix fmt"
 }
 
 check_behaviour() {
