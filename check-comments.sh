@@ -213,9 +213,25 @@ def decoration(text):
     the emoji spoken of, not the comment wearing one. Arrows are notation, and So is the
     class that separates an emoji from a minus sign.
     """
+    # A character repeated three times or more is a rule drawn across the comment, which
+    # is the house's own way of opening a block — `# ---- the tools ----`, and the same
+    # with a box-drawing character. It is not worn in a sentence, so it is not this rule's
+    run = None
+    length = 0
+    drawn = set()
+    for ch in text:
+        if ch == run:
+            length += 1
+            if length >= 3:
+                drawn.add(ch)
+        else:
+            run, length = ch, 1
+
     depth = 0
     quote = ""
     for ch in text:
+        if ch in drawn:
+            continue
         if quote:
             if ch == quote:
                 quote = ""
@@ -778,6 +794,10 @@ CANON
   plant "$d" module.nix "services.foo.enable" "  # done, and it works"$'✅'
   expect_warn "$d" decoration "an emoji worn rather than named"
   planted decoration
+  d=$(copy decoration-rule)
+  plant "$d" module.nix "services.foo.enable" \
+    '  # ── the tools ──────────────────────────────────────────────'
+  expect_quiet "$d" decoration "a character drawn in a run, which is a rule and not an ornament"
   d=$(copy deco-named)
   plant "$d" module.nix "services.foo.enable" "  # the mode emoji ("$'⚡'") is set in rofi.nix"
   expect_quiet "$d" decoration "an emoji named inside brackets"
