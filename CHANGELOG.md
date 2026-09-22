@@ -8,6 +8,7 @@ Kept in the shape of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), d
 
 - `dead-code` no longer reports a line the writer indented under its own marker. A synopsis of a call, a table, a transcript quoted from a terminal: all of them parse as code because they are code, shown rather than run, and the indent is what says so. A commented-out block keeps its first line flush, so the block is still caught by that line. Found by running this checker over forty-six repositories, where the same false positive stood in four of them on the family's own `#   defect NAME FILE …` line
 - `marker` no longer reports `TODO.md` or `NOTES.md`. A dot and a letter after the word make it a filename, and prose about which files a repository keeps has to be able to name them. A dot that ends a sentence still leaves a marker a marker
+- `first-person` and `hedge` read a comment without its double-quoted spans, the way the alphabet rules already read it. A quoted phrase is the words being spoken of rather than the voice of the comment: `"I could not look"` is what grep means by exit 2, and `"it failed once, probably nothing"` is the phrase a check exists to turn into evidence. Only the double quote, because an apostrophe is a letter in `let's` and `I've`
 
 ## 2026-09-22
 

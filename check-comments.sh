@@ -768,11 +768,19 @@ CANON
   d=$(copy person-io)
   plant "$d" module.nix "services.foo.enable" "  # I/O is buffered, so the flush is explicit"
   expect_quiet "$d" first-person "I/O, which is not a pronoun"
+  d=$(copy person-quoted)
+  plant "$d" module.nix "services.foo.enable" \
+    '  # grep says 2 for "I could not look", which is not an answer about the file'
+  expect_quiet "$d" first-person "a pronoun inside the words being spoken of"
 
   d=$(copy hedge)
   plant "$d" module.nix "services.foo.enable" "  # the daemon is probably up by then"
   expect_warn "$d" hedge "a hedge"
   planted hedge
+  d=$(copy hedge-quoted)
+  plant "$d" module.nix "services.foo.enable" \
+    '  # turns "it failed once, probably nothing" into evidence a reader can act on'
+  expect_quiet "$d" hedge "a hedge inside the words being spoken of"
 
   d=$(copy dup)
   plant "$d" module.nix "services.foo.enable" \
@@ -925,6 +933,20 @@ run_rules() {
       }
       return out
     }
+    # A double-quoted span is the words being spoken of rather than the voice of the
+    # comment: "it failed once, probably nothing" is a phrase being turned into evidence,
+    # and "I could not look" is what grep means by exit 2. The script rules already read a
+    # quoted word that way, in the frontend; the two rules that read prose read it here.
+    # Only the double quote, because an apostrophe is a letter in let us and I have
+    function spoken(s,   out, i, ch, inq) {
+      out = ""; inq = 0
+      for (i = 1; i <= length(s); i++) {
+        ch = substr(s, i, 1)
+        if (ch == "\"") { inq = !inq; continue }
+        if (!inq) out = out ch
+      }
+      return out
+    }
 
     # Two passes over one table: a block s identifiers are printed after its comments, so
     # a single pass would read a comment before knowing what sits under it
@@ -988,12 +1010,14 @@ run_rules() {
       if (bare ~ /[!?][!?]/)
         say("warning", file, line, "decoration", "doubled punctuation")
 
-      if (lower ~ /(^|[^a-z])(we|we.re|we.ve|we.ll|let.s|our|ours|ourselves)([^a-z]|$)/ ||
-          bare ~ /(^|[^A-Za-z])(I|I.m|I.ve|I.d|I.ll)([^A-Za-z\/]|$)/)
+      said = spoken(bare)
+      lowsaid = tolower(said)
+      if (lowsaid ~ /(^|[^a-z])(we|we.re|we.ve|we.ll|let.s|our|ours|ourselves)([^a-z]|$)/ ||
+          said ~ /(^|[^A-Za-z])(I|I.m|I.ve|I.d|I.ll)([^A-Za-z\/]|$)/)
         say("warning", file, line, "first-person", "a comment states the mechanism, not who arranged it")
 
-      if (lower ~ /(^|[^a-z])(probably|maybe|perhaps|might|hopefully|not sure)([^a-z]|$)/ ||
-          lower ~ /should work|seems to|i think/)
+      if (lowsaid ~ /(^|[^a-z])(probably|maybe|perhaps|might|hopefully|not sure)([^a-z]|$)/ ||
+          lowsaid ~ /should work|seems to|i think/)
         say("warning", file, line, "hedge", "a hedge beside a fact reads as permission to doubt it")
 
       # restates-code: every word of the comment is already a word of the line below
