@@ -7,6 +7,7 @@ Kept in the shape of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), d
 ### Added
 
 - The skill: what a comment carries, what replaces one, and the form it takes
+- `check-prose.sh`, vendored from [create-readme](https://github.com/rokokol/create-readme-skill), replaces the two prose rules this gate carried as its own awk. The vendored file decides more than they did: the admonition shape, a typographic quotation mark and a heading that duplicates a file
 - `check-comments.sh`, which reads comments out of the syntax tree and decides eleven rules across two tiers, proving each able to fail on a planted copy every run
 - `duplicate-doc`, which measures how far a comment has drifted from pointing at `WORKAROUNDS.md`, `DEVIATIONS.md` or `PITFALLS.md` towards restating it, by counting shared three-word runs
 - `--frontend`, which prints the Python stage so a linter can read what no editor can see inside a heredoc
