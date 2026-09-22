@@ -768,6 +768,9 @@ CANON
   d=$(copy person-io)
   plant "$d" module.nix "services.foo.enable" "  # I/O is buffered, so the flush is explicit"
   expect_quiet "$d" first-person "I/O, which is not a pronoun"
+  d=$(copy person-flag)
+  plant "$d" script.sh "set -euo pipefail" '# the include path is passed as -I and the library one as -L'
+  expect_quiet "$d" first-person "a single-letter flag, where the hyphen says it is not a pronoun"
   d=$(copy person-quoted)
   plant "$d" module.nix "services.foo.enable" \
     '  # grep says 2 for "I could not look", which is not an answer about the file'
@@ -1013,7 +1016,7 @@ run_rules() {
       said = spoken(bare)
       lowsaid = tolower(said)
       if (lowsaid ~ /(^|[^a-z])(we|we.re|we.ve|we.ll|let.s|our|ours|ourselves)([^a-z]|$)/ ||
-          said ~ /(^|[^A-Za-z])(I|I.m|I.ve|I.d|I.ll)([^A-Za-z\/]|$)/)
+          said ~ /(^|[^A-Za-z-])(I|I.m|I.ve|I.d|I.ll)([^A-Za-z\/]|$)/)
         say("warning", file, line, "first-person", "a comment states the mechanism, not who arranged it")
 
       if (lowsaid ~ /(^|[^a-z])(probably|maybe|perhaps|might|hopefully|not sure)([^a-z]|$)/ ||
