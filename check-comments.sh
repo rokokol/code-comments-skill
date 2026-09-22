@@ -333,7 +333,10 @@ def dead_python(text):
                          ast.ImportFrom, ast.Return, ast.Raise, ast.Assert,
                          ast.FunctionDef, ast.ClassDef, ast.If, ast.For, ast.While)):
         return "py"
-    if isinstance(node, ast.Expr) and isinstance(node.value, (ast.Call, ast.Attribute)):
+    # A call, not a bare attribute: `DEVIATIONS.md` parses as one, and a pointer to a
+    # document is the shape this rule must never take for code. Real commented-out code
+    # does something — it calls, assigns or imports
+    if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
         return "py"
     return "-"
 
