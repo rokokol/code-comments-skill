@@ -60,8 +60,10 @@ Errors:
                  begins past column 100 is the code's width, not its own
   marker         TODO, FIXME, XXX or HACK as a word, outside backticks
   no-cyrillic    a Cyrillic letter, outside quotes and backticks. The rule a comment is
-                 held to is that it is English; what a machine can decide is this much of
-                 it, so a French or transliterated comment passes here
+                 held to is that it is English; what a machine can decide is which script
+                 it is written in, so a French comment in plain ASCII passes here
+  no-cjk         a Han, kana or Hangul character, outside quotes and backticks
+  no-arabic      an Arabic or Hebrew letter, outside quotes and backticks
   dead-code      commented-out code: a Nix binding, or a dotted name alone in a list; a
                  shell assignment, or a command the file calls elsewhere, with no English
                  word among its tokens; a Python statement. A `NAME ARGS -> what` line is
@@ -70,6 +72,9 @@ Warnings:
   moment         a date beside found, fixed, added, removed, changed, since or as of, or
                  opening the comment; for now, temporarily, currently, as of. `valid until
                  DATE` is data and `Needs bash N.N` is a floor, so neither is one
+  no-diacritics  a Latin letter carrying a diacritic, outside quotes and backticks. A
+                 warning rather than an error, because a borrowed word and a name — cafe,
+                 naive, Godel, Erdos — carry one in correct English
   decoration     an emoji or symbol character used bare, or doubled ! and ?; one inside
                  parentheses, quotes or backticks is named, not used; arrows are notation
   first-person   we, we're, we've, let's, our, ours, ourselves, I, I'm, I've as words
@@ -101,6 +106,9 @@ rules() {
 width	error	all	a comment line over 100 columns
 marker	error	all	TODO, FIXME, XXX or HACK as a word
 no-cyrillic	error	all	a Cyrillic letter outside quotes and backticks
+no-cjk	error	all	a Han, kana or Hangul character outside quotes and backticks
+no-arabic	error	all	an Arabic or Hebrew letter outside quotes and backticks
+no-diacritics	warning	all	a Latin letter with a diacritic outside quotes and backticks
 dead-code	error	nix bash python	commented-out code
 moment	warning	all	a comment anchored to a moment rather than a reason
 decoration	warning	all	an emoji or symbol character used bare
@@ -126,15 +134,15 @@ frontend() {
 Rows, tab-separated, with tabs inside text replaced by spaces:
 
   F FILE LANG MODE ERRLINE      MODE is tree or line; ERRLINE is the first rejected line
-  C FILE LINE BLOCK POS COL WIDTH DEAD DECO CYR TEXT
+  C FILE LINE BLOCK POS COL WIDTH DEAD DECO SCRIPT TEXT
   B FILE BLOCK IDS
 
 BLOCK numbers runs of comment lines that share an indent, so a rule can ask about a whole
 block. POS is own for a comment on its own line and trail for one after code. DEAD is the
 verdict of parsing the comment's text as code in its own language. DECO is the first bare
-symbol character, as U+XXXX. CYR is cyr when a Cyrillic letter is used bare — decided
-here, because awk sees bytes and a byte range for a script is a different range in a
-different locale. B carries the identifiers of the first code line below a block,
+symbol character, as U+XXXX. SCRIPT names the first script used bare — decided here,
+because awk sees bytes and a byte range for a script is a different range in a different
+locale. B carries the identifiers of the first code line below a block,
 lowercased and split on dots, dashes, underscores and case changes.
 """
 
@@ -214,8 +222,21 @@ def decoration(text):
     return "-"
 
 
-def cyrillic(text):
-    """A Cyrillic letter used bare, rather than quoted as the word being spoken of."""
+# Scripts an English comment does not write in, each decided the same way, so one walk
+# answers for all of them. Diacritics are last and separate: cafe, naive, Godel and Erdos
+# carry them in correct English, which is why that one is a warning and not an error
+SCRIPTS = (
+    ("cyrillic", (("Ѐ", "ԯ"),)),
+    ("cjk", (("぀", "ヿ"), ("㐀", "䶿"), ("一", "鿿"),
+             ("가", "힯"), ("ｦ", "ﾝ"))),
+    ("arabic", (("֐", "ۿ"), ("ݐ", "ݿ"), ("ﭐ", "﷿"),
+                ("ﹰ", "﻿"))),
+    ("diacritic", (("À", "ɏ"), ("̀", "ͯ"))),
+)
+
+
+def foreign_script(text):
+    """The first script used bare, rather than quoted as the word being spoken of."""
     quote = ""
     for ch in text:
         if quote:
@@ -225,8 +246,10 @@ def cyrillic(text):
         if ch in "\"'`":
             quote = ch
             continue
-        if "Ѐ" <= ch <= "ӿ":
-            return "cyr"
+        for label, ranges in SCRIPTS:
+            for lo, hi in ranges:
+                if lo <= ch <= hi:
+                    return label
     return "-"
 
 
@@ -400,7 +423,7 @@ def main(argv):
             flat = body.replace("\t", " ")
             out.append(
                 f"C\t{path}\t{lineno}\t{block}\t{pos}\t{col}\t{len(full)}\t{dead}\t"
-                f"{decoration(body)}\t{cyrillic(body)}\t{flat}"
+                f"{decoration(body)}\t{foreign_script(body)}\t{flat}"
             )
 
         # The identifiers below each block, for restates-code
@@ -624,6 +647,21 @@ CANON
   plant "$d" module.nix "services.foo.enable" "  # временно так, потом переделать"
   expect_red "$d" no-cyrillic "a Cyrillic comment"
   planted no-cyrillic
+  d=$(copy cjk)
+  plant "$d" module.nix "services.foo.enable" "  # 設定はここで決まる"
+  expect_red "$d" no-cjk "a comment in Han and kana"
+  planted no-cjk
+  d=$(copy arabic)
+  plant "$d" module.nix "services.foo.enable" "  # الإعداد هنا"
+  expect_red "$d" no-arabic "a comment in Arabic"
+  planted no-arabic
+  d=$(copy diacritic)
+  plant "$d" module.nix "services.foo.enable" "  # the naïve path is the one taken here"
+  expect_warn "$d" no-diacritics "a diacritic in the prose"
+  planted no-diacritics
+  d=$(copy script-quoted)
+  plant "$d" module.nix "services.foo.enable" '  # the trigger "скилл" is matched by meaning'
+  expect_quiet "$d" no-cyrillic "a foreign word quoted as the word being spoken of"
 
   d=$(copy dead-nix)
   plant "$d" module.nix "services.foo.enable" "  # services.xserver.libinput.enable = true;"
@@ -829,7 +867,7 @@ run_rules() {
 
     $1 == "C" {
       file = $2; line = $3; block = $4; pos = $5; col = $6; width = $7
-      dead = $8; deco = $9; cyr = $10; text = $11
+      dead = $8; deco = $9; script = $10; text = $11
       bare = nobackticks(text)
 
       # width: the arithmetic is the whole rule. One unbreakable token carries the excess
@@ -843,8 +881,17 @@ run_rules() {
       if (bare ~ /(^|[^A-Za-z])(TODO|FIXME|XXX|HACK)([^A-Za-z]|$)/)
         say("error", file, line, "marker", "a marker belongs in a tracker, and the reason for the line belongs here")
 
-      if (cyr != "-")
-        say("error", file, line, "no-cyrillic", "a comment is English")
+      # One walk in the frontend answers for every script, and the tier differs because
+      # the evidence does: Han or Arabic in an English comment is not English, while a
+      # diacritic may be a borrowed word or a name that carries one by right
+      if (script == "cyrillic")
+        say("error", file, line, "no-cyrillic", "a Cyrillic letter, and a comment is English")
+      else if (script == "cjk")
+        say("error", file, line, "no-cjk", "a Han, kana or Hangul character, and a comment is English")
+      else if (script == "arabic")
+        say("error", file, line, "no-arabic", "an Arabic or Hebrew letter, and a comment is English")
+      else if (script == "diacritic")
+        say("warning", file, line, "no-diacritics", "a Latin letter with a diacritic — a borrowed word or a name may keep one, other prose may not")
 
       # Only on its own line: code that was commented out took the line with it, while a
       # comment after code on the same line is a note about that code. `AWWW_BG="282828"

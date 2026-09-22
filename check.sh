@@ -201,7 +201,9 @@ check_behaviour() {
   printf '{ x = 1; }\n' >"$work/empty-repo/a.nix"
   neutered 'width > 100' 'width > 100000' width
   neutered 'TODO|FIXME|XXX|HACK' 'NOTHINGATALL' marker
-  neutered 'cyr != "-"' 'cyr == "never"' no-cyrillic
+  neutered 'script == "cyrillic"' 'script == "nevercyrillic"' no-cyrillic
+  neutered 'script == "cjk"' 'script == "nevercjk"' no-cjk
+  neutered 'script == "diacritic"' 'script == "neverdiacritic"' no-diacritics
   neutered 'dead != "-" && pos == "own"' 'dead == "never"' dead-code
   neutered 'shared >= 5 && shared * 100 >= n * 15' 'shared >= 100000' duplicate-doc
 }
