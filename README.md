@@ -6,6 +6,7 @@
 
 [![Agent Skill](https://img.shields.io/badge/Agent_Skill-6E56CF?style=flat)](https://agentskills.io)
 [![license](https://img.shields.io/badge/MIT-3DA639?style=flat)](LICENSE)
+[![pitfalls](https://img.shields.io/badge/docs-pitfalls-555?style=flat)](PITFALLS.md)
 
 </div>
 
