@@ -43,7 +43,13 @@ fail() {
   exit 1
 }
 
-checker() { "$BASH" "$HERE/check-sh.sh" "$@"; }
+# One place decides the mode, so no call is left asking for a tree the runner proving the
+# 3.2 claim does not have: a macOS image carries neither shfmt nor jq
+checker() {
+  local tree_flag=()
+  [[ -z "${CHECK_BASH32:-}" ]] || tree_flag=(--bash-only)
+  "$BASH" "$HERE/check-sh.sh" ${tree_flag[@]+"${tree_flag[@]}"} "$@"
+}
 checks() { CHECK_SH_NESTED=1 checker "$@"; }
 comments() { CHECK_COMMENTS_NESTED=1 "$BASH" "$HERE/check-comments.sh" "$@"; }
 
@@ -153,6 +159,15 @@ check_behaviour() {
   for s in check-sh.sh check-skill.sh check-pins.sh check-changelog.sh vendor-sync.sh check.sh; do
     checks "$s"
   done
+
+  # Everything below reads comments, which needs python3 with the grammar pack. The macOS
+  # runner has neither, and is here for one claim only: that this code runs under the 3.2
+  # macOS ships. That claim is settled by the block above, which parses every script under
+  # this bash and runs each one's own --help
+  if [[ -n "${CHECK_BASH32:-}" ]]; then
+    echo "   the rules are not run here: they read trees, and this runner is for the bash claim"
+    return 0
+  fi
 
   echo "== the comment checker holds this repository's own comments"
   # Dogfood: a checker that cannot pass its own rules is asking for something nobody does.
