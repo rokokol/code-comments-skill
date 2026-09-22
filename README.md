@@ -19,6 +19,7 @@ The skill ships [`check-comments.sh`](check-comments.sh), which decides the half
 ./check-comments.sh              # the repository around you
 ./check-comments.sh --strict     # every warning is a finding
 ./check-comments.sh --list-rules # what it decides, and at which tier
+./check-comments.sh --sentences  # every sentence past 25 words, when a register pass is due
 ```
 
 Nix is why the checker exists in this shape. Vale reads comments through tree-sitter for two dozen languages and Nix is not among them, while the tree-sitter CLI wants a grammar checkout per language; the Python language pack carries all of them, so the checker keeps one non-POSIX stage and stays shell everywhere else. The Python that reads the trees lives inside the script, where `.github/vendor.lock` can carry it as one line — `./check-comments.sh --frontend` prints it for a linter, since no editor can see inside a heredoc
