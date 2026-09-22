@@ -11,3 +11,4 @@ Kept in the shape of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), d
 - `duplicate-doc`, which measures how far a comment has drifted from pointing at `WORKAROUNDS.md`, `DEVIATIONS.md` or `PITFALLS.md` towards restating it, by counting shared three-word runs
 - `--frontend`, which prints the Python stage so a linter can read what no editor can see inside a heredoc
 - `no-cjk` and `no-arabic` beside `no-cyrillic`, and `no-diacritics` as a warning, because a borrowed word or a name carries a diacritic in correct English. One walk over the text answers for every script
+- `hidden-char`, for a bidirectional override, a zero-width character or a byte-order mark. Quotes do not excuse one: a comment that renders as one sentence and compiles as another is what an override is for, and it is the one rule no reader can enforce by eye

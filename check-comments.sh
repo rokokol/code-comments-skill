@@ -55,6 +55,11 @@ given; # opens a comment. An entry that excuses nothing is an error, like a malf
 one: left in place, it would silently excuse the next real violation on that path
 
 Errors:
+  hidden-char    a character that is invisible and changes how the rest of the line
+                 reads: a bidirectional override or mark, a zero-width space or joiner, a
+                 byte-order mark. Quotes do not excuse one, unlike every rule below —
+                 a comment that renders as one sentence and compiles as another is what
+                 an override is for, and no reader catches it in a diff
   width          a comment line over 100 columns; one token of 40 or more characters — a
                  hash, a fingerprint, a URL — may carry the excess, and a comment that
                  begins past column 100 is the code's width, not its own
@@ -105,6 +110,7 @@ rules() {
   cat <<'EOF'
 width	error	all	a comment line over 100 columns
 marker	error	all	TODO, FIXME, XXX or HACK as a word
+hidden-char	error	all	an invisible character that changes how the line reads
 no-cyrillic	error	all	a Cyrillic letter outside quotes and backticks
 no-cjk	error	all	a Han, kana or Hangul character outside quotes and backticks
 no-arabic	error	all	an Arabic or Hebrew letter outside quotes and backticks
@@ -134,7 +140,7 @@ frontend() {
 Rows, tab-separated, with tabs inside text replaced by spaces:
 
   F FILE LANG MODE ERRLINE      MODE is tree or line; ERRLINE is the first rejected line
-  C FILE LINE BLOCK POS COL WIDTH DEAD DECO SCRIPT TEXT
+  C FILE LINE BLOCK POS COL WIDTH DEAD DECO SCRIPT HIDDEN TEXT
   B FILE BLOCK IDS
 
 BLOCK numbers runs of comment lines that share an indent, so a rule can ask about a whole
@@ -226,13 +232,45 @@ def decoration(text):
 # answers for all of them. Diacritics are last and separate: cafe, naive, Godel and Erdos
 # carry them in correct English, which is why that one is a warning and not an error
 SCRIPTS = (
-    ("cyrillic", (("Ѐ", "ԯ"),)),
-    ("cjk", (("぀", "ヿ"), ("㐀", "䶿"), ("一", "鿿"),
-             ("가", "힯"), ("ｦ", "ﾝ"))),
-    ("arabic", (("֐", "ۿ"), ("ݐ", "ݿ"), ("ﭐ", "﷿"),
-                ("ﹰ", "﻿"))),
-    ("diacritic", (("À", "ɏ"), ("̀", "ͯ"))),
+    ("cyrillic", ((0x0400, 0x052F),)),
+    ("cjk", ((0x3040, 0x30FF), (0x3400, 0x4DBF), (0x4E00, 0x9FFF),
+             (0xAC00, 0xD7AF), (0xFF66, 0xFF9D))),
+    ("arabic", ((0x0590, 0x06FF), (0x0750, 0x077F), (0xFB50, 0xFDFF),
+                (0xFE70, 0xFEFF))),
+    ("diacritic", ((0x00C0, 0x024F), (0x0300, 0x036F))),
 )
+
+
+# Characters that change how the text reads without being seen. The bidirectional
+# overrides are what Trojan Source (CVE-2021-42574) is built from: a comment renders as
+# one sentence and compiles as another, and no review catches it by eye. The zero-width
+# ones hide a word break or a join the same way
+#
+# Written as numbers, never as literals. A literal here would put the very characters this
+# rule reports into the file that reports them: invisible in every editor, and the checker
+# could then never pass itself without an exception for its own source
+HIDDEN = (
+    (0x061C, 0x061C),
+    (0x200B, 0x200F),
+    (0x202A, 0x202E),
+    (0x2060, 0x2064),
+    (0x2066, 0x2069),
+    (0xFEFF, 0xFEFF),
+)
+
+
+def hidden_char(text):
+    """A character that is invisible and changes how the rest reads.
+
+    Quotes do not excuse one. Every other script rule treats a quoted word as the word
+    being spoken of, but an override inside a string is exactly where the attack hides.
+    """
+    for ch in text:
+        point = ord(ch)
+        for lo, hi in HIDDEN:
+            if lo <= point <= hi:
+                return f"U+{point:04X}"
+    return "-"
 
 
 def foreign_script(text):
@@ -246,9 +284,10 @@ def foreign_script(text):
         if ch in "\"'`":
             quote = ch
             continue
+        point = ord(ch)
         for label, ranges in SCRIPTS:
             for lo, hi in ranges:
-                if lo <= ch <= hi:
+                if lo <= point <= hi:
                     return label
     return "-"
 
@@ -423,7 +462,7 @@ def main(argv):
             flat = body.replace("\t", " ")
             out.append(
                 f"C\t{path}\t{lineno}\t{block}\t{pos}\t{col}\t{len(full)}\t{dead}\t"
-                f"{decoration(body)}\t{foreign_script(body)}\t{flat}"
+                f"{decoration(body)}\t{foreign_script(body)}\t{hidden_char(body)}\t{flat}"
             )
 
         # The identifiers below each block, for restates-code
@@ -642,6 +681,16 @@ CANON
   expect_red "$d" marker "a TODO marker"
   planted marker
   expect_quiet "$canon" marker "mktemp's XXXXXX template, which is a string and not a comment"
+
+  # The UTF-8 bytes of the right-to-left override, rather than a backslash-u escape: bash
+  # 4.2 reads that escape and the 3.2 macOS ships does not. Naming it by its escape would
+  # not do either, because writing one puts the character itself into this file — which is
+  # how this very comment first failed the rule it explains
+  d=$(copy hidden)
+  plant "$d" module.nix "services.foo.enable" \
+    "  # if (isAdmin) $(printf '\xe2\x80\xae') begin admins only"
+  expect_red "$d" hidden-char "a right-to-left override in a comment"
+  planted hidden-char
 
   d=$(copy cyr)
   plant "$d" module.nix "services.foo.enable" "  # временно так, потом переделать"
@@ -867,7 +916,7 @@ run_rules() {
 
     $1 == "C" {
       file = $2; line = $3; block = $4; pos = $5; col = $6; width = $7
-      dead = $8; deco = $9; script = $10; text = $11
+      dead = $8; deco = $9; script = $10; hidden = $11; text = $12
       bare = nobackticks(text)
 
       # width: the arithmetic is the whole rule. One unbreakable token carries the excess
@@ -880,6 +929,11 @@ run_rules() {
 
       if (bare ~ /(^|[^A-Za-z])(TODO|FIXME|XXX|HACK)([^A-Za-z]|$)/)
         say("error", file, line, "marker", "a marker belongs in a tracker, and the reason for the line belongs here")
+
+      # Not excused by quotes, unlike every rule below it: an override inside a string is
+      # where the attack puts itself, and no reader sees it in a diff
+      if (hidden != "-")
+        say("error", file, line, "hidden-char", hidden " is invisible and changes how the rest of the line reads")
 
       # One walk in the frontend answers for every script, and the tier differs because
       # the evidence does: Han or Arabic in an English comment is not English, while a
@@ -963,7 +1017,7 @@ if [[ -s "$work/entries" ]]; then
     NR == FNR {
       if ($1 == "C" && $5 == "own") {
         key = $2 "\t" $4
-        body[key] = body[key] " " $11
+        body[key] = body[key] " " $12
         if (!(key in first)) first[key] = $3
       }
       next

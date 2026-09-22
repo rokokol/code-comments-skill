@@ -201,6 +201,7 @@ check_behaviour() {
   printf '{ x = 1; }\n' >"$work/empty-repo/a.nix"
   neutered 'width > 100' 'width > 100000' width
   neutered 'TODO|FIXME|XXX|HACK' 'NOTHINGATALL' marker
+  neutered 'hidden != "-"' 'hidden == "never"' hidden-char
   neutered 'script == "cyrillic"' 'script == "nevercyrillic"' no-cyrillic
   neutered 'script == "cjk"' 'script == "nevercjk"' no-cjk
   neutered 'script == "diacritic"' 'script == "neverdiacritic"' no-diacritics
