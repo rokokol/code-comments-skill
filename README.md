@@ -27,7 +27,21 @@ The boundary with neighbouring conventions is deliberate. Whether a reason belon
 
 ## Install
 
-```sh
+```bash
+npx skills add -g rokokol/code-comments-skill    # for you, everywhere
+npx skills add rokokol/code-comments-skill       # for the project you are standing in
+```
+
+Claude Code also takes it as a plugin:
+
+```
+/plugin marketplace add rokokol/skills
+/plugin install code-comments@rokokol-skills
+```
+
+or by hand — clone into whichever skills directory your agent reads:
+
+```bash
 git clone https://github.com/rokokol/code-comments-skill ~/.claude/skills/code-comments
 ```
 
