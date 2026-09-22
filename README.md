@@ -25,11 +25,10 @@ Nix is why the checker exists in this shape. Vale reads comments through tree-si
 
 The boundary with neighbouring conventions is deliberate. Whether a reason belongs beside the line or in a root document is decided by the [maintainer-docs skill](https://github.com/rokokol/maintainer-docs-skill); this skill governs what the comment says once that question is settled, and the checker measures how far a comment has gone from pointing at a document towards restating it
 
-## Installing
+## Install
 
 ```sh
-git clone https://github.com/rokokol/code-comments-skill
-ln -s "$PWD/code-comments-skill" ~/.claude/skills/code-comments
+git clone https://github.com/rokokol/code-comments-skill ~/.claude/skills/code-comments
 ```
 
 The checker needs `python3` with the `tree_sitter_language_pack` module, and `nix develop -c` is where the pinned pair lives
