@@ -453,8 +453,17 @@ def main(argv):
 
             full = lines[lineno - 1] if lineno <= len(lines) else piece
             pos = "own" if not full[: col - 1].strip() else "trail"
-            body = stripped.lstrip("#").lstrip("*/ ").rstrip()
-            if lang == "nix":
+            # A line the writer indented under its marker is a display: a synopsis of a
+            # command, a table, a transcript quoted from a terminal. It parses as code
+            # because it is code, shown rather than run, and the indent is what says so.
+            # A commented-out block keeps its first line flush, so the block is still
+            # caught by that line
+            inner = stripped.lstrip("#")
+            display = len(inner) - len(inner.lstrip(" ")) >= 2
+            body = inner.lstrip("*/ ").rstrip()
+            if display:
+                dead = "-"
+            elif lang == "nix":
                 dead = dead_nix(body, mod)
             elif lang == "python":
                 dead = dead_python(body)
@@ -684,6 +693,10 @@ CANON
   expect_red "$d" marker "a TODO marker"
   planted marker
   expect_quiet "$canon" marker "mktemp's XXXXXX template, which is a string and not a comment"
+  d=$(copy marker-filename)
+  plant "$d" module.nix "services.foo.enable" \
+    "  # A repository that already tracks TODO.md or NOTES.md owns the file"
+  expect_quiet "$d" marker "a filename, where the dot and a letter say the word is not a marker"
 
   # The UTF-8 bytes of the right-to-left override, rather than a backslash-u escape: bash
   # 4.2 reads that escape and the 3.2 macOS ships does not. Naming it by its escape would
@@ -726,6 +739,11 @@ CANON
   plant "$d" script.sh "set -euo pipefail" "# systemctl --user restart app.service"
   expect_red "$d" dead-code "a commented-out shell command the file calls elsewhere"
   expect_quiet "$canon" dead-code "a helper signature, a tool pragma and prose about a command"
+  # A synopsis under its own marker: code shown rather than run, which is how every help in
+  # this family spells the shape of a call
+  d=$(copy dead-display)
+  plant "$d" script.sh "set -euo pipefail" "#   systemctl --user restart app.service"
+  expect_quiet "$d" dead-code "a command indented under its marker, which is a display"
 
   d=$(copy moment)
   plant "$d" module.nix "services.foo.enable" "  # for now the port is fixed, until the module grows an option"
@@ -930,7 +948,10 @@ run_rules() {
       if (width > 100 && col <= 100 && !(long >= 40 && width - long <= 100))
         say("error", file, line, "width", width " columns, and no single token of 40 or more carries the excess")
 
-      if (bare ~ /(^|[^A-Za-z])(TODO|FIXME|XXX|HACK)([^A-Za-z]|$)/)
+      # A dot and a letter after the word make it a filename, not a marker: TODO.md and
+      # NOTES.md are files a repository keeps, and prose about which files it keeps has to
+      # be able to name them. A dot that ends a sentence still leaves a marker a marker
+      if (bare ~ /(^|[^A-Za-z])(TODO|FIXME|XXX|HACK)([^A-Za-z.]|$|[.]([^A-Za-z]|$))/)
         say("error", file, line, "marker", "a marker belongs in a tracker, and the reason for the line belongs here")
 
       # Not excused by quotes, unlike every rule below it: an override inside a string is

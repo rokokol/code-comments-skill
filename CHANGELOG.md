@@ -2,6 +2,13 @@
 
 Kept in the shape of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), dated rather than numbered, and with no `Unreleased` section — this repository is read at whatever revision you have checked out, so whatever is on the default branch is what every reader already has
 
+## 2026-09-23
+
+### Fixed
+
+- `dead-code` no longer reports a line the writer indented under its own marker. A synopsis of a call, a table, a transcript quoted from a terminal: all of them parse as code because they are code, shown rather than run, and the indent is what says so. A commented-out block keeps its first line flush, so the block is still caught by that line. Found by running this checker over forty-six repositories, where the same false positive stood in four of them on the family's own `#   defect NAME FILE …` line
+- `marker` no longer reports `TODO.md` or `NOTES.md`. A dot and a letter after the word make it a filename, and prose about which files a repository keeps has to be able to name them. A dot that ends a sentence still leaves a marker a marker
+
 ## 2026-09-22
 
 ### Added
