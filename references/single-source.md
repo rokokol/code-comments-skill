@@ -30,7 +30,7 @@ Everything above the last line is already in the document, in more detail and wi
 
 Shared *terms* do not separate a pointer from a restatement. A correct pointer must use the document's terms — the same socket, the same directory, the same package — or it would not be pointing at anything. Measured on a real pair, a correct pointer shared six terms with its entry and almost no phrases
 
-Shared *phrases* do separate them, because reusing a phrase is reusing the text. `check-comments.sh` counts three-word runs shared between a comment block and one entry, and reports when five or more of them are at least fifteen percent of the comment's own. The finding prints the count, the share and three of the runs, so the measurement can be argued with rather than believed
+Shared *phrases* do separate them, because reusing a phrase is reusing the text. `check-comments.sh` counts three-word runs shared between a comment block and one entry, and reports a dozen of them, or five that are a sixth of the entry. A sentence of fifteen words holds thirteen such runs, so a dozen is a sentence copied whatever the entry's length, while the share catches a short entry told twice. The comment is read without its quoted spans, because naming the entry by its heading is the form this rule asks for and a pointer must not be charged for it. The finding prints the count, the share and three of the runs, so the measurement can be argued with rather than believed
 
 ## Where this extends
 

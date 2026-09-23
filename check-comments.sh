@@ -97,10 +97,14 @@ Warnings:
   first-person   we, we're, we've, let's, our, ours, ourselves, I, I'm, I've as words
   hedge          probably, maybe, perhaps, might, hopefully, should work, seems to, I
                  think, not sure
-  duplicate-doc  a comment sharing five or more three-word runs with one entry of
-                 WORKAROUNDS.md, DEVIATIONS.md or PITFALLS.md, those runs being 15% or
-                 more of the comment's own: it restates the entry it should point at. The
-                 runs are printed with the finding
+  duplicate-doc  a comment saying again twelve three-word runs of one entry of
+                 WORKAROUNDS.md, DEVIATIONS.md or PITFALLS.md, or five that are 15% or
+                 more of that entry: it restates what it should point at. A sentence of
+                 fifteen words holds thirteen such runs, so a dozen is a sentence copied
+                 whatever the entry's length, and the share catches a short entry told
+                 twice. The comment is read without its quoted spans, because the form
+                 this rule asks for quotes the entry's heading. The count, the share and
+                 three of the runs are printed with the finding
   restates-code  a comment every word of which is a word of the identifiers on the line
                  below, split on dots, dashes, underscores and case changes
   unparsed       the grammar rejects a line of the file; its comments are read from the
@@ -789,6 +793,10 @@ CANON
   d=$(copy moment-date)
   plant "$d" module.nix "services.foo.enable" "  # valid until 2032-02-27, which is what the fingerprint above says"
   expect_quiet "$d" moment "a date that is data rather than an anchor"
+  d=$(copy moment-quoted)
+  plant "$d" module.nix "services.foo.enable" \
+    '  # nologin answers "This account is currently not available" instead of the export'
+  expect_quiet "$d" moment "an anchor inside the words being spoken of"
 
   d=$(copy deco)
   plant "$d" module.nix "services.foo.enable" "  # done, and it works"$'✅'
@@ -1111,10 +1119,15 @@ run_rules() {
       if (dead != "-" && pos == "own")
         say("error", file, line, "dead-code", "commented-out code (" dead "), which nothing checks and which rots in silence")
 
-      lower = tolower(bare)
-      if (lower ~ /(^|[^a-z])(for now|temporarily|currently|as of)([^a-z]|$)/ ||
-          lower ~ /(found|fixed|added|removed|changed|since)[^.]{0,20}[12][0-9]{3}-[0-9]{2}-[0-9]{2}/ ||
-          lower ~ /^[12][0-9]{3}-[0-9]{2}-[0-9]{2}/)
+      said = spoken(bare)
+      lowsaid = tolower(said)
+
+      # Read without the quoted spans, like the two rules below: a comment that quotes what
+      # a tool prints carries the words of that tool and not its own. sshd answers "This
+      # account is currently not available", and the anchor in that line belongs to sshd
+      if (lowsaid ~ /(^|[^a-z])(for now|temporarily|currently|as of)([^a-z]|$)/ ||
+          lowsaid ~ /(found|fixed|added|removed|changed|since)[^.]{0,20}[12][0-9]{3}-[0-9]{2}-[0-9]{2}/ ||
+          lowsaid ~ /^[12][0-9]{3}-[0-9]{2}-[0-9]{2}/)
         say("warning", file, line, "moment", "anchored to a moment; state the durable reason instead")
 
       if (deco != "-")
@@ -1122,8 +1135,6 @@ run_rules() {
       if (bare ~ /[!?][!?]/)
         say("warning", file, line, "decoration", "doubled punctuation")
 
-      said = spoken(bare)
-      lowsaid = tolower(said)
       if (lowsaid ~ /(^|[^a-z])(we|we.re|we.ve|we.ll|let.s|our|ours|ourselves)([^a-z]|$)/ ||
           said ~ /(^|[^A-Za-z-])(I|I.m|I.ve|I.d|I.ll)([^A-Za-z\/]|$)/)
         say("warning", file, line, "first-person", "a comment states the mechanism, not who arranged it")
@@ -1174,6 +1185,18 @@ if [[ -s "$work/entries" ]]; then
       }
       return made
     }
+    # A double-quoted span is a citation, and the form this rule asks for cites the entry
+    # by its heading. Counting those words would charge a correct pointer for the one thing
+    # that makes it correct
+    function spoken(s,   out, i, ch, inq) {
+      out = ""; inq = 0
+      for (i = 1; i <= length(s); i++) {
+        ch = substr(s, i, 1)
+        if (ch == "\"") { inq = !inq; continue }
+        if (!inq) out = out ch
+      }
+      return out
+    }
     NR == FNR {
       if ($1 == "C" && $5 == "own") {
         key = $2 "\t" $4
@@ -1185,21 +1208,33 @@ if [[ -s "$work/entries" ]]; then
     { entry[$1 "\t" $2] = entry[$1 "\t" $2] " " $3 }
     END {
       for (key in body) {
-        n = trigrams(body[key], mine)
+        n = trigrams(spoken(body[key]), mine)
         if (n < 5) { delete mine; continue }
         for (e in entry) {
           delete theirs
-          trigrams(entry[e], theirs)
+          # The share is of the entry, not of the comment. A comment measured against
+          # itself is charged for being short: a pointer that states the one fact its line
+          # needs has few runs of its own, so the handful it must share with the entry —
+          # the names, the setting, the path — is a large part of it. Shortening a correct
+          # pointer here from four lines to two moved it from 16 per cent to 20. Measured
+          # against the entry the question is the one the rule asks: how much of what the
+          # entry says has been said again
+          theirn = trigrams(entry[e], theirs)
+          if (theirn < 5) continue
           shared = 0; examples = ""
           for (t in mine)
             if (t in theirs) {
               shared++
               if (shared <= 3) examples = examples (examples ? ", " : "") "\"" t "\""
             }
-          if (shared >= 5 && shared * 100 >= n * 15) {
+          # Two ways to be a retelling, because one measure alone is wrong in one direction
+          # each. A sentence of fifteen words holds thirteen three-word runs, so a dozen
+          # said again is a sentence copied, however long the entry it came from. And a
+          # sixth of a short entry is that entry told twice even where the count is smaller
+          if (shared >= 12 || (shared >= 5 && shared * 100 >= theirn * 15)) {
             split(key, k, "\t"); split(e, ee, "\t")
             printf "warning\t%s\t%s\tduplicate-doc\t%s\n", rel(k[1]), first[key],
-              "shares " shared " three-word runs (" int(shared * 100 / n) "%) with " ee[1] " \"" ee[2] "\": " examples " — point at the entry instead of restating it"
+              "says " shared " of the " theirn " three-word runs (" int(shared * 100 / theirn) "%) of " ee[1] " \"" ee[2] "\" again: " examples " — point at the entry instead of restating it"
             break
           }
         }

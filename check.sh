@@ -207,7 +207,7 @@ check_behaviour() {
   neutered 'script == "cjk"' 'script == "nevercjk"' no-cjk
   neutered 'script == "diacritic"' 'script == "neverdiacritic"' no-diacritics
   neutered 'dead != "-" && pos == "own"' 'dead == "never"' dead-code
-  neutered 'shared >= 5 && shared * 100 >= n * 15' 'shared >= 100000' duplicate-doc
+  neutered 'shared >= 12 || (shared >= 5 && shared * 100 >= theirn * 15)' 'shared >= 100000' duplicate-doc
 }
 
 case "$mode" in
